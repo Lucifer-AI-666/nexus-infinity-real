@@ -62,8 +62,11 @@ class PersistentMemory:
     def load_state(self) -> Dict:
         """Carica lo stato salvato"""
         with open(self.state_file, 'r') as f:
-            states = json.load(f)
-        return states[-1] if states else {}
+            content = f.read()
+        if not content or content.strip() == '[]':
+            return {}
+        states = json.loads(content)
+        return states[-1] if isinstance(states, list) and len(states) > 0 else (states if isinstance(states, dict) else {})
     
     def save_decision(self, decision: str, reasoning: str, outcome: str = None):
         """Salva una decisione importante"""
