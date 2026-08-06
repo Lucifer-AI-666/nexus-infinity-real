@@ -2,7 +2,7 @@
 REM ========================================
 REM NEXUS INFINITY REAL - AUTO SETUP & START
 REM ========================================
-REM Questo script scarica, prepara e avvia il sistema completo
+REM Questo script prepara e avvia il sistema completo
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -17,7 +17,7 @@ echo.
 REM ========================================
 REM 1. VERIFICA PYTHON
 REM ========================================
-echo [1/5] Verifica Python...
+echo [1/4] Verifica Python...
 python --version >nul 2>&1
 if errorlevel 1 (
     echo ❌ ERRORE: Python non trovato!
@@ -31,32 +31,10 @@ if errorlevel 1 (
 echo ✅ Python trovato
 
 REM ========================================
-REM 2. CLONA IL REPOSITORY (se non esiste)
+REM 2. CREA AMBIENTE VIRTUALE
 REM ========================================
 echo.
-echo [2/5] Verifica repository...
-if not exist ".git" (
-    echo 📥 Clonazione repository da GitHub...
-    git clone https://github.com/Lucifer-AI-666/nexus-infinity-real.git temp_clone
-    cd temp_clone
-    for /d %%A in (*) do (
-        move "%%A" "..\%%A"
-    )
-    for %%A in (*) do (
-        move "%%A" "..\%%A"
-    )
-    cd ..
-    rmdir /s /q temp_clone
-    echo ✅ Repository clonato
-) else (
-    echo ✅ Repository già presente
-)
-
-REM ========================================
-REM 3. CREA AMBIENTE VIRTUALE
-REM ========================================
-echo.
-echo [3/5] Setup ambiente Python...
+echo [2/4] Setup ambiente Python...
 if not exist "venv" (
     echo 🔧 Creazione ambiente virtuale...
     python -m venv venv
@@ -66,10 +44,10 @@ if not exist "venv" (
 )
 
 REM ========================================
-REM 4. ATTIVA VENV E INSTALLA DIPENDENZE
+REM 3. ATTIVA VENV E INSTALLA DIPENDENZE
 REM ========================================
 echo.
-echo [4/5] Installazione dipendenze...
+echo [3/4] Installazione dipendenze...
 call venv\Scripts\activate.bat
 
 REM Upgrade pip
@@ -84,10 +62,10 @@ if exist "requirements.txt" (
 )
 
 REM ========================================
-REM 5. CONFIGURAZIONE .ENV
+REM 4. CONFIGURAZIONE .ENV
 REM ========================================
 echo.
-echo [5/5] Configurazione ambiente...
+echo [4/4] Configurazione ambiente...
 
 if not exist ".env" (
     echo 🔑 Creazione file .env...
@@ -108,6 +86,10 @@ if not exist ".env" (
         echo ENABLE_AUDIT_LOG=true
     ) > .env
     echo ✅ File .env creato
+    echo.
+    echo ⚠️  IMPORTANTE: Modifica il file .env e aggiungi la tua chiave Groq!
+    echo   GROQ_API_KEY=your_groq_api_key_here
+    echo.
 ) else (
     echo ✅ File .env già presente
 )
