@@ -95,6 +95,39 @@ nexus-infinity-real/
 - ✅ Permessi granulari
 - ✅ Validazione input/output
 
+## Nuove Feature
+
+### 1. Persistent Memory 💾
+- Salva conversazioni, stato e decisioni
+- Checkpoint per ripresa da punti critici
+- Memoria a lungo termine dell'agente
+
+### 2. Approval Gate 🔐
+- Richieste di approvazione per azioni sensibili
+- Feedback loop umano integrato
+- Cronologia completa delle decisioni
+
+### 3. Monitoring & Logging 📊
+- Audit log completo
+- Event tracking
+- Performance metrics
+- Riepilogo automatico
+
+### 4. Task Scheduler 🤖
+- Autonomia agente per ore/giorni
+- Pianificazione automatica
+- Aggiornamento continuo del planning file
+
+### 5. Docker Support 🐳
+- Containerizzazione completa
+- Docker Compose con PostgreSQL
+- Health checks integrati
+
+### 6. Test Suite ✅
+- Unit test per tutti i moduli
+- Integration test
+- Coverage completo
+
 ## Deployment
 
 ### Su Manus Webdev
