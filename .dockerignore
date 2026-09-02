@@ -1,0 +1,13 @@
+.git
+.github
+.env
+.venv
+venv
+__pycache__
+*.pyc
+*.db
+nexus_memory
+nexus_approvals
+nexus_logs
+test_*
+

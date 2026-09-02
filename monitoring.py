@@ -7,9 +7,12 @@ Audit log completo, performance metrics, error tracking
 import json
 import os
 import logging
+import threading
 from datetime import datetime
 from typing import Dict, Any
 from enum import Enum
+
+_FILE_LOCK = threading.RLock()
 
 class EventType(Enum):
     """Tipi di eventi da tracciare"""
@@ -35,14 +38,23 @@ class NexusMonitor:
         self.metrics_file = os.path.join(logs_dir, "metrics.json")
         
         # Setup logging
-        self.logger = logging.getLogger("NexusInfinity")
-        handler = logging.FileHandler(self.audit_log_file)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        logger_name = f"NexusInfinity.{os.path.abspath(logs_dir)}"
+        self.logger = logging.getLogger(logger_name)
+        audit_path = os.path.abspath(self.audit_log_file)
+        has_handler = any(
+            isinstance(existing, logging.FileHandler)
+            and existing.baseFilename == audit_path
+            for existing in self.logger.handlers
         )
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+        if not has_handler:
+            handler = logging.FileHandler(self.audit_log_file)
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
         
         self._initialize_files()
     
@@ -69,11 +81,12 @@ class NexusMonitor:
         }
         
         # Salva nel file events.json
-        with open(self.events_file, 'r') as f:
-            events = json.load(f)
-        events.append(event)
-        with open(self.events_file, 'w') as f:
-            json.dump(events, f, indent=2, ensure_ascii=False)
+        with _FILE_LOCK:
+            with open(self.events_file, 'r') as f:
+                events = json.load(f)
+            events.append(event)
+            with open(self.events_file, 'w') as f:
+                json.dump(events, f, indent=2, ensure_ascii=False)
         
         # Log nel file audit.log
         log_level = getattr(logging, severity.upper(), logging.INFO)
@@ -84,17 +97,18 @@ class NexusMonitor:
     
     def _update_metrics(self, event_type: EventType):
         """Aggiorna le metriche"""
-        with open(self.metrics_file, 'r') as f:
-            metrics = json.load(f)
-        
-        if event_type.value not in metrics["events"]:
-            metrics["events"][event_type.value] = 0
-        
-        metrics["events"][event_type.value] += 1
-        metrics["last_updated"] = datetime.now().isoformat()
-        
-        with open(self.metrics_file, 'w') as f:
-            json.dump(metrics, f, indent=2, ensure_ascii=False)
+        with _FILE_LOCK:
+            with open(self.metrics_file, 'r') as f:
+                metrics = json.load(f)
+
+            if event_type.value not in metrics["events"]:
+                metrics["events"][event_type.value] = 0
+
+            metrics["events"][event_type.value] += 1
+            metrics["last_updated"] = datetime.now().isoformat()
+
+            with open(self.metrics_file, 'w') as f:
+                json.dump(metrics, f, indent=2, ensure_ascii=False)
     
     def log_api_call(self, endpoint: str, method: str, status_code: int, 
                     response_time: float):
@@ -153,14 +167,16 @@ class NexusMonitor:
     
     def get_events(self, limit: int = 100) -> list:
         """Recupera gli ultimi eventi"""
-        with open(self.events_file, 'r') as f:
-            events = json.load(f)
+        with _FILE_LOCK:
+            with open(self.events_file, 'r') as f:
+                events = json.load(f)
         return events[-limit:]
     
     def get_metrics(self) -> Dict:
         """Recupera le metriche"""
-        with open(self.metrics_file, 'r') as f:
-            return json.load(f)
+        with _FILE_LOCK:
+            with open(self.metrics_file, 'r') as f:
+                return json.load(f)
     
     def get_audit_log(self, lines: int = 50) -> str:
         """Recupera le ultime righe dell'audit log"""

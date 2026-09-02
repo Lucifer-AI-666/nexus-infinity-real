@@ -1,164 +1,91 @@
-# Guida Installazione - Nexus Infinity Real
+# Windows installation guide
 
-## 🚀 Avvio Automatico (Consigliato)
+## One-file automatic setup
 
-### Windows
+1. Download `NEXUS_BOOTSTRAP.bat` from this repository.
+2. Put it in the folder where Nexus should be installed.
+3. Double-click it.
+4. If Python is missing, approve the `winget` installation when prompted.
+5. Paste a newly generated Groq API key into the hidden prompt.
 
-1. **Scarica il repository**
-   - Clicca su `Code` → `Download ZIP`
-   - Estrai la cartella
+The key is written only to the local `.env` file. The script never writes it to
+GitHub and never prints it back to the terminal.
 
-2. **Doppio click su `START_NEXUS.bat`**
-   - Lo script farà tutto automaticamente:
-     - ✅ Verifica Python
-     - ✅ Clona il repository (se necessario)
-     - ✅ Crea ambiente virtuale
-     - ✅ Installa dipendenze
-     - ✅ Configura .env
-     - ✅ Avvia il sistema
+The normal result is two windows:
 
-3. **Scegli la modalità:**
-   - `1` → CLI Interattiva
-   - `2` → API Server (http://localhost:8000)
-   - `3` → Entrambi in parallelo
+- Nexus API at <http://127.0.0.1:8000/docs>;
+- Nexus CLI, where `exit` stops the interactive session.
 
-### macOS / Linux
+## Existing checkout
 
-```bash
-# Rendi lo script eseguibile
-chmod +x start.sh
+Run one of these commands from Command Prompt:
 
-# Esegui
-./start.sh
+```text
+START_NEXUS.bat --all
+START_NEXUS.bat --api
+START_NEXUS.bat --cli
+START_NEXUS.bat --install-only
 ```
 
-## 📋 Prerequisiti
+The script exits with a non-zero code if Python setup, dependency installation,
+configuration validation, tests, or the API health check fails.
 
-- **Python 3.8+** (scarica da https://www.python.org)
-- **Git** (opzionale, per clonare il repo)
-- **Chiave Groq API** (ottieni da https://console.groq.com)
+## Updating safely
 
-## ⚙️ Configurazione Manuale
+Running `NEXUS_BOOTSTRAP.bat` outside the repository performs a Git
+fast-forward-only update. It will stop instead of overwriting local changes.
 
-Se preferisci setup manuale:
+If Git is unavailable, the first installation falls back to a GitHub ZIP
+download through Windows PowerShell.
 
-```bash
-# 1. Crea ambiente virtuale
-python -m venv venv
+## Configuration
 
-# 2. Attiva venv
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+Local settings are in `.env`:
 
-# 3. Installa dipendenze
-pip install -r requirements.txt
-
-# 4. Configura .env
-cp .env.example .env
-# Modifica .env e aggiungi la tua chiave Groq
-
-# 5. Esegui
-python main.py
+```dotenv
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+API_HOST=127.0.0.1
+API_PORT=8000
+API_DEBUG=false
+NEXUS_API_TOKEN=
+CORS_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
 ```
 
-## 🔑 Configurazione Chiave Groq
+Set `NEXUS_API_TOKEN` before exposing the API outside the computer. Keep
+`API_DEBUG=false` in deployments.
 
-1. Vai a https://console.groq.com
-2. Crea una nuova API Key
-3. Copia la chiave
-4. Modifica il file `.env`:
-   ```
-   GROQ_API_KEY=your_key_here
-   ```
+## Troubleshooting
 
-## 🎯 Utilizzo
+### Python was just installed but is not found
 
-### CLI Interattiva
-```bash
-python main.py
+Close Command Prompt and run the script again so Windows reloads `PATH`.
+
+### Dependency installation failed
+
+Do not continue with a partial environment. Check internet access, then rerun
+`START_NEXUS.bat`; `pip` will resume safely.
+
+### Groq key rejected
+
+Generate a new key in the Groq console. Keys pasted into a public or shared
+place must be revoked rather than reused.
+
+### API did not become healthy
+
+Check whether port 8000 is already occupied:
+
+```text
+netstat -ano | findstr :8000
 ```
 
-Digita i tuoi messaggi e ricevi risposte da Groq in tempo reale.
+Change `API_PORT` in `.env` if necessary. The automatic browser link currently
+uses the configured port automatically.
 
-### API Server
-```bash
-python api_server.py
+### Run tests manually
+
+```text
+.venv\Scripts\python.exe -m unittest -v test_nexus.py
+.venv\Scripts\python.exe -m compileall -q .
+.venv\Scripts\python.exe -m pip check
 ```
-
-Accedi a:
-- **Documentazione interattiva**: http://localhost:8000/docs
-- **Endpoint chat**: POST http://localhost:8000/api/chat
-- **Status**: GET http://localhost:8000/api/status
-
-### Esempio API
-```bash
-curl -X POST "http://localhost:8000/api/chat" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Ciao, come stai?",
-    "system_prompt": "Sei un assistente AI amichevole"
-  }'
-```
-
-## 🐛 Troubleshooting
-
-### "Python non trovato"
-- Installa Python da https://www.python.org
-- Assicurati di selezionare "Add Python to PATH"
-- Riavvia il computer
-
-### "GROQ_API_KEY not found"
-- Verifica che il file `.env` esista
-- Controlla che la chiave sia corretta
-- Riavvia lo script
-
-### "Port 8000 already in use"
-- Cambia la porta in `.env`:
-  ```
-  API_PORT=8001
-  ```
-
-### "Connection refused"
-- Verifica che l'API server sia in esecuzione
-- Controlla il firewall
-- Prova `http://127.0.0.1:8000` invece di `localhost`
-
-## 📚 File Importanti
-
-| File | Descrizione |
-|------|-------------|
-| `START_NEXUS.bat` | Avvio automatico completo (Windows) |
-| `start.bat` | Alias rapido |
-| `QUICK_INSTALL.bat` | Setup veloce |
-| `main.py` | CLI interattiva |
-| `api_server.py` | API REST FastAPI |
-| `.env` | Configurazione (crea da .env.example) |
-| `requirements.txt` | Dipendenze Python |
-
-## 🔗 Link Utili
-
-- **GitHub**: https://github.com/Lucifer-AI-666/nexus-infinity-real
-- **Groq Console**: https://console.groq.com
-- **FastAPI Docs**: https://fastapi.tiangolo.com
-- **Python Docs**: https://docs.python.org
-
-## 💡 Tips
-
-- Usa `QUICK_INSTALL.bat` per setup veloce senza menu
-- Usa `START_NEXUS.bat` per menu interattivo
-- Prova l'API con Postman o Insomnia
-- Leggi i log per debug
-
-## 📞 Supporto
-
-Se hai problemi:
-1. Controlla il file `.env`
-2. Verifica che Python sia installato
-3. Leggi i messaggi di errore
-4. Consulta il README.md
-
----
-
-**Buon utilizzo di Nexus Infinity Real! 🚀**
