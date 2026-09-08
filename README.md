@@ -1,166 +1,137 @@
 # Nexus Infinity Real
 
-**Sistema Operativo per Agenti AI con Groq Integration**
+Nexus Infinity Real is a local Python/Groq agent foundation with:
 
-Un'architettura completa e modulare per orchestrare agenti intelligenti con:
-- ⚡ **Groq LPU** per inferenza ultra-veloce
-- 🧠 **Llama 3.3 70B** come modello principale
-- 🔌 **API REST** con FastAPI
-- 🛡️ **Security Layer** integrato
-- 📊 **Audit Log** completo
-- 🔄 **Action Gate** per approvazioni umane
+- an interactive CLI;
+- a FastAPI REST service;
+- persistent local conversation, task, approval, and audit files;
+- a persistent task scheduler;
+- Docker support;
+- offline tests and GitHub Actions CI;
+- a Windows bootstrap that downloads, configures, tests, and starts the project.
 
-## Quick Start
+This repository is a working local MVP. It is not an operating system and it is
+not yet a production-grade autonomous agent platform.
 
-### 1. Setup
+## Fastest Windows start
+
+Download `NEXUS_BOOTSTRAP.bat` and double-click it. The script:
+
+1. clones or safely fast-forwards the repository;
+2. locates Python 3 and can install Python 3.12 through `winget` with consent;
+3. creates an isolated `.venv`;
+4. installs all dependencies and stops on errors;
+5. creates the local `.env` and asks for the Groq key without echoing it;
+6. runs the offline self-tests;
+7. starts the API and CLI, checks API health, and opens `/docs`.
+
+When the repository is already downloaded, use:
+
+```text
+START_NEXUS.bat --all
+START_NEXUS.bat --api
+START_NEXUS.bat --cli
+START_NEXUS.bat --install-only
+```
+
+`start.bat` forwards the same optional argument. `QUICK_INSTALL.bat` prepares
+the environment without starting services.
+
+## Manual setup
 
 ```bash
-# Clona il repository
 git clone https://github.com/Lucifer-AI-666/nexus-infinity-real.git
 cd nexus-infinity-real
-
-# Crea un ambiente virtuale
-python -m venv venv
-source venv/bin/activate  # su Windows: venv\Scripts\activate
-
-# Installa le dipendenze
-pip install -r requirements.txt
+python -m venv .venv
 ```
 
-### 2. Configurazione
+Windows:
+
+```text
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+copy .env.example .env
+.venv\Scripts\python.exe api_server.py
+```
+
+macOS/Linux:
 
 ```bash
-# Copia il file di esempio
+.venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env
-
-# Aggiungi la tua chiave Groq
-# Modifica .env e aggiungi: GROQ_API_KEY=your_key_here
+.venv/bin/python api_server.py
 ```
 
-### 3. Esecuzione
+Put a newly generated Groq key in the local `.env` file:
 
-**Modalità interattiva:**
-```bash
-python main.py
+```dotenv
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-**API Server:**
+Never commit `.env`. It is excluded by `.gitignore` and `.dockerignore`.
+
+## API
+
+The local documentation is at <http://127.0.0.1:8000/docs>.
+
+- `GET /` — service identity;
+- `GET /api/status` — local configuration readiness, without pretending to
+  perform a live Groq check;
+- `POST /api/chat` — one Groq chat completion.
+
+Example:
+
 ```bash
-python api_server.py
-# Accedi a: http://localhost:8000/docs
-```
-
-## API Endpoints
-
-### POST `/api/chat`
-Invia un messaggio e ricevi una risposta da Groq.
-
-```bash
-curl -X POST "http://localhost:8000/api/chat" \
+curl -X POST http://127.0.0.1:8000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{
-    "message": "Ciao, come stai?",
-    "system_prompt": "Sei un assistente AI amichevole"
-  }'
+  -d '{"message":"Ciao Nexus"}'
 ```
 
-### GET `/api/status`
-Verifica lo stato dell'API.
+For any network-accessible deployment, set `NEXUS_API_TOKEN` and send it as a
+Bearer token. Configure `CORS_ORIGINS` explicitly; wildcard credentialed CORS
+is not enabled.
+
+## Docker
+
+Create `.env`, then run:
 
 ```bash
-curl http://localhost:8000/api/status
+docker compose up --build -d
+docker compose ps
 ```
 
-## Architettura
+The image runs as an unprivileged user and exposes port `8000`. Local memory,
+approval, and audit directories are mounted as volumes.
 
-```
-nexus-infinity-real/
-├── main.py              # CLI interattiva
-├── api_server.py        # API REST FastAPI
-├── requirements.txt     # Dipendenze Python
-├── .env                 # Configurazione (con chiave Groq)
-└── README.md           # Questo file
-```
-
-## Modelli Disponibili
-
-- **llama-3.3-70b-versatile**: Modello principale (consigliato)
-- **mixtral-8x7b-32768**: Alternativa veloce
-- **gemma-7b-it**: Modello leggero
-
-## Sicurezza
-
-- ✅ Action Gate per azioni sensibili
-- ✅ Audit Log completo
-- ✅ Permessi granulari
-- ✅ Validazione input/output
-
-## Nuove Feature
-
-### 1. Persistent Memory 💾
-- Salva conversazioni, stato e decisioni
-- Checkpoint per ripresa da punti critici
-- Memoria a lungo termine dell'agente
-
-### 2. Approval Gate 🔐
-- Richieste di approvazione per azioni sensibili
-- Feedback loop umano integrato
-- Cronologia completa delle decisioni
-
-### 3. Monitoring & Logging 📊
-- Audit log completo
-- Event tracking
-- Performance metrics
-- Riepilogo automatico
-
-### 4. Task Scheduler 🤖
-- Autonomia agente per ore/giorni
-- Pianificazione automatica
-- Aggiornamento continuo del planning file
-
-### 5. Docker Support 🐳
-- Containerizzazione completa
-- Docker Compose con PostgreSQL
-- Health checks integrati
-
-### 6. Test Suite ✅
-- Unit test per tutti i moduli
-- Integration test
-- Coverage completo
-
-## Deployment
-
-### Su Manus Webdev
+## Verification
 
 ```bash
-# Crea un nuovo progetto webdev
-manus webdev create --name nexus-infinity-real --template web-db-user
-
-# Deploya l'API
-git push origin main
+python -m compileall -q .
+python -m unittest -v test_nexus.py
+python -m pip check
 ```
 
-### Su Docker
+CI runs the suite on Python 3.11, 3.12, and 3.13.
 
-```bash
-docker build -t nexus-infinity-real .
-docker run -p 8000:8000 -e GROQ_API_KEY=your_key nexus-infinity-real
-```
+## Security notes
 
-## Troubleshooting
+- Revoke any API key pasted into chats, screenshots, tickets, or logs and
+  generate a replacement.
+- Provider exception details are logged by type and are not returned to API
+  clients.
+- The API binds to `127.0.0.1` by default. Docker explicitly binds inside the
+  container to `0.0.0.0`.
+- The approval gate stores decisions; it does not magically sandbox arbitrary
+  commands. Do not add shell execution without a separate capability policy.
 
-### "GROQ_API_KEY not found"
-- Assicurati di aver configurato il file `.env`
-- Verifica che la chiave sia valida su https://console.groq.com
+## Current limitations
 
-### "Connection refused"
-- Verifica che l'API server sia in esecuzione
-- Controlla la porta 8000
+- No public deployment or DNS record is created by this repository alone.
+- The REST API is stateless per request and does not provide multi-user
+  conversation isolation.
+- JSON file storage is intended for a single local process, not a distributed
+  cluster.
+- The scheduler produces model reports for already queued work; it does not
+  have unrestricted machine control.
 
-## Contributi
-
-Questo progetto è mantenuto da Lucifer-AI-666.
-
-## Licenza
-
-MIT License
+See `PLANNING.md` for the verified state and next production steps.

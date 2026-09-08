@@ -1,90 +1,119 @@
 #!/usr/bin/env python3
-"""
-API Server FastAPI per Nexus Infinity Real
-Espone l'intelligenza AI via REST API
-"""
+"""FastAPI server for Nexus Infinity Real."""
 
+from __future__ import annotations
+
+import hmac
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
 from dotenv import load_dotenv
-from groq import Groq
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
+
+from main import (
+    DEFAULT_MODEL,
+    NexusConfigurationError,
+    NexusInfinityCore,
+    NexusProviderError,
+)
 
 load_dotenv()
 
 app = FastAPI(
     title="Nexus Infinity Real API",
-    description="Sistema Operativo per Agenti AI",
-    version="1.0.0"
+    description="Groq-backed Nexus API",
+    version="1.1.0",
 )
 
-# CORS Configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+cors_origins = [
+    value.strip()
+    for value in os.getenv("CORS_ORIGINS", "").split(",")
+    if value.strip()
+]
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
-# Groq Client
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+bearer = HTTPBearer(auto_error=False)
 
-# Models
+
+def require_api_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+) -> None:
+    """Require a bearer token only when NEXUS_API_TOKEN is configured."""
+    expected = os.getenv("NEXUS_API_TOKEN", "").strip()
+    if not expected:
+        return
+    supplied = credentials.credentials if credentials else ""
+    if not hmac.compare_digest(supplied, expected):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 class ChatRequest(BaseModel):
-    message: str
-    system_prompt: str = "Sei Nexus Infinity, un sistema operativo intelligente per agenti AI."
+    message: str = Field(min_length=1, max_length=20_000)
+    system_prompt: str | None = Field(default=None, max_length=8_000)
+
 
 class ChatResponse(BaseModel):
     response: str
-    model: str = "llama-3.3-70b-versatile"
+    model: str
 
-# Routes
+
 @app.get("/")
-async def root():
-    """Health check"""
+async def root() -> dict[str, str]:
     return {
         "status": "online",
         "service": "Nexus Infinity Real API",
-        "version": "1.0.0"
+        "version": "1.1.0",
     }
 
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """Invia un messaggio e ricevi una risposta da Groq"""
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": request.system_prompt},
-                {"role": "user", "content": request.message}
-            ],
-            temperature=0.7,
-            max_tokens=1024,
-        )
-        
-        return ChatResponse(
-            response=response.choices[0].message.content,
-            model="llama-3.3-70b-versatile"
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/status")
-async def status():
-    """Status dell'API"""
+async def api_status() -> dict[str, str | bool]:
+    key = os.getenv("GROQ_API_KEY", "")
+    configured = key.startswith("gsk_") and len(key) > 20
     return {
-        "status": "operational",
-        "groq_connected": True,
-        "model": "llama-3.3-70b-versatile"
+        "status": "ready" if configured else "configuration_required",
+        "groq_configured": configured,
+        "model": os.getenv("GROQ_MODEL", DEFAULT_MODEL),
     }
+
+
+@app.post(
+    "/api/chat",
+    response_model=ChatResponse,
+    dependencies=[Depends(require_api_token)],
+)
+def chat(request: ChatRequest) -> ChatResponse:
+    try:
+        core = NexusInfinityCore(persist_memory=False)
+        response = core.chat(request.message, request.system_prompt)
+        return ChatResponse(response=response, model=core.model)
+    except NexusConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except NexusProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
-        host=os.getenv("API_HOST", "0.0.0.0"),
-        port=int(os.getenv("API_PORT", 8000)),
-        reload=os.getenv("API_DEBUG", "false").lower() == "true"
+        host=os.getenv("API_HOST", "127.0.0.1"),
+        port=int(os.getenv("API_PORT", "8000")),
+        reload=os.getenv("API_DEBUG", "false").lower() == "true",
     )

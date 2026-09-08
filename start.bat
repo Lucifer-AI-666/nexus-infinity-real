@@ -1,3 +1,3 @@
 @echo off
-REM Quick start alias
-START_NEXUS.bat
+call "%~dp0START_NEXUS.bat" %*
+exit /b %errorlevel%
